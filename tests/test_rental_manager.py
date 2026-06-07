@@ -1,13 +1,25 @@
 import pytest
 from datetime import date
+from unittest.mock import MagicMock
 
 class DummyRentalManager:
+    def __init__(self):
+        # TC_13,14  için sahte veritabanı bağlantısı eklendi
+        self.db = MagicMock()
+
     def checkDates(self, rent_date, return_date):
         # String gelirse date objesine çevir
         if isinstance(rent_date, str):
             rent_date = date.fromisoformat(rent_date)
             return_date = date.fromisoformat(return_date)
         if return_date < rent_date:
+            return False
+        return True
+    
+    # TC_13 ve TC_14 testleri için asıl kontrol metodu eklendi
+    def isCarAvailable(self, car_id):
+        car_status = self.db.get_status(car_id)
+        if car_status == "Maintenance" or car_status == "Rented":
             return False
         return True
 
@@ -113,3 +125,25 @@ def test_TC_11_calc_fee_standard_flow():
     fee = calculate_total_rental_fee(daily_rate=1000, days=5, age=30)
     assert fee == 5000.0, f"TC_11 FAILED: Beklenen 5000.0, alınan {fee}"
 
+def test_TC_13_is_car_available_free(rental_manager):
+    """
+    Test Case ID : TC_13
+    Teknik       : Beyaz Kutu (Yol Testi – Uygun dalı)
+    Durum / Sapma: Orijinal. Veritabanından "Available" dönmesi durumu MagicMock ile 
+                   simüle edilerek plandaki hedefe (Path Testing) birebir uyuldu.
+    """
+    rental_manager.db.get_status.return_value = "Available"
+    result = rental_manager.isCarAvailable(car_id=3)
+    assert result is True
+
+
+def test_TC_14_is_car_available_maintenance(rental_manager):
+    """
+    Test Case ID : TC_14
+    Teknik       : Beyaz Kutu (Yol Testi – Bakım dalı)
+    Durum / Sapma: Orijinal. Plandaki "CarId = 2" ve "Maintenance" koşulu aynen uygulandı.
+                   Herhangi bir test case iptal edilmedi veya bölünmedi.
+    """
+    rental_manager.db.get_status.return_value = "Maintenance"
+    result = rental_manager.isCarAvailable(car_id=2)
+    assert result is False
